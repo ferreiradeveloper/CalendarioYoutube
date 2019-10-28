@@ -5,7 +5,7 @@
         <v-toolbar flat color="white">
           <v-btn color="primary" dark class="mr-4" @click="dialog = true">Agregar</v-btn>  
           <v-btn outlined class="mr-4" @click="setToday">
-            Today
+            Hoy
           </v-btn>
           <v-btn fab text small @click="prev">
             <v-icon small>mdi-chevron-left</v-icon>
@@ -27,16 +27,16 @@
             </template>
             <v-list>
               <v-list-item @click="type = 'day'">
-                <v-list-item-title>Day</v-list-item-title>
+                <v-list-item-title>Día</v-list-item-title>
               </v-list-item>
               <v-list-item @click="type = 'week'">
-                <v-list-item-title>Week</v-list-item-title>
+                <v-list-item-title>Semana</v-list-item-title>
               </v-list-item>
               <v-list-item @click="type = 'month'">
-                <v-list-item-title>Month</v-list-item-title>
+                <v-list-item-title>Mes</v-list-item-title>
               </v-list-item>
               <v-list-item @click="type = '4day'">
-                <v-list-item-title>4 days</v-list-item-title>
+                <v-list-item-title>4 días</v-list-item-title>
               </v-list-item>
             </v-list>
           </v-menu>
@@ -57,6 +57,9 @@
           @click:more="viewDay"
           @click:date="viewDay"
           @change="updateRange"
+          :weekdays="[1, 2, 3, 4, 5, 6, 0]"
+          locale="es"
+          :short-weekdays="false"
         ></v-calendar>
 
         <!-- Modal Agrgar Evento -->
@@ -91,20 +94,29 @@
               :color="selectedEvent.color"
               dark
             >
-              <v-btn icon>
-                <v-icon>mdi-pencil</v-icon>
+              <v-btn icon @click="deleteEvent(selectedEvent)">
+                <v-icon>mdi-delete</v-icon>
               </v-btn>
               <v-toolbar-title v-html="selectedEvent.name"></v-toolbar-title>
-              <v-spacer></v-spacer>
-              <v-btn icon>
-                <v-icon>mdi-heart</v-icon>
-              </v-btn>
-              <v-btn icon>
-                <v-icon>mdi-dots-vertical</v-icon>
-              </v-btn>
+              <v-spacer></v-spacer>              
             </v-toolbar>
             <v-card-text>
-              <span v-html="selectedEvent.details"></span>
+              <v-form v-if="currentlyEditing !== selectedEvent.id">
+                {{selectedEvent.name}} - {{selectedEvent.details}}
+              </v-form>
+                
+              <v-form v-else>
+                <v-text-field type="text" v-model="selectedEvent.name" label="Editar Nombre">
+                </v-text-field>
+
+                <textarea-autosize
+                  v-model="selectedEvent.details"
+                  type="text"
+                  style="width: 100%"
+                  :min-heigth="100"
+                ></textarea-autosize>
+              </v-form>
+
             </v-card-text>
             <v-card-actions>
               <v-btn
@@ -114,6 +126,10 @@
               >
                 Cancel
               </v-btn>
+              <v-btn text v-if="currentlyEditing !== selectedEvent.id"
+              @click.prevent="editEvent(selectedEvent.id)">Editar</v-btn>
+
+              <v-btn text v-else @click.prevent="updateEvent(selectedEvent)">Guardar Cambios</v-btn>
             </v-card-actions>
           </v-card>
         </v-menu>
@@ -131,7 +147,7 @@
       focus: new Date().toISOString().substr(0,10),
       type: 'month',
       typeToLabel: {
-        month: 'Month',
+        month: 'Mes',
         week: 'Week',
         day: 'Day',
         '4day': '4 Days',
@@ -191,7 +207,34 @@
         this.getEvents();
     },
     methods: {
-      
+
+      async updateEvent(ev){
+        try{
+          await db.collection('eventos').doc(ev.id).update({
+            name: ev.name,
+            details: ev.details
+          })
+
+          this.selectedOpen = false;
+          this.currentlyEditing = null;
+          
+        }catch (error){
+          console.log(error);
+        }
+      },
+      editEvent(id){
+        this.currentlyEditing = id
+      },
+      async deleteEvent(ev){
+        try {
+          await db.collection('eventos').doc(ev.id).delete();
+          this.selectedOpen = false;
+          this.getEvents();
+
+        } catch (error) {
+          console.log(error);
+        }
+      },
       async addEvent(){
           try {
               if(this.name && this.start && this.end){
